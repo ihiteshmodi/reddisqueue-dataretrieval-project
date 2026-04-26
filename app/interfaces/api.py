@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.application.job_manager import JobManager, get_job_manager
 from app.infrastructure.config import get_settings
@@ -48,9 +48,23 @@ def _submit_dimension_request(
 def _get_dimension_result(
 	entity: str,
 	job_id: str,
+	page: int,
+	page_size: int | None,
 	manager: JobManager,
 ) -> JobResultResponse:
-	response = manager.get_result(entity=entity, job_id=job_id)
+	settings = get_settings()
+	effective_page_size = page_size or settings.default_page_size
+	if effective_page_size > settings.max_page_size:
+		raise HTTPException(
+			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			detail=f"page_size must be <= {settings.max_page_size}",
+		)
+	response = manager.get_result(
+		entity=entity,
+		job_id=job_id,
+		page=page,
+		page_size=effective_page_size,
+	)
 	if response.status == "not_found":
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=response.error)
 	return response
@@ -67,9 +81,11 @@ def submit_advertisers_request(
 @router.get("/jobs/advertisers/{job_id}", response_model=JobResultResponse)
 def get_advertisers_result(
 	job_id: str,
+	page: int = Query(default=1, ge=1),
+	page_size: int | None = Query(default=None, ge=1),
 	manager: JobManager = Depends(_manager_dependency),
 ) -> JobResultResponse:
-	return _get_dimension_result("advertisers", job_id, manager)
+	return _get_dimension_result("advertisers", job_id, page, page_size, manager)
 
 
 @router.post("/jobs/campaigns", response_model=JobSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -83,9 +99,11 @@ def submit_campaigns_request(
 @router.get("/jobs/campaigns/{job_id}", response_model=JobResultResponse)
 def get_campaigns_result(
 	job_id: str,
+	page: int = Query(default=1, ge=1),
+	page_size: int | None = Query(default=None, ge=1),
 	manager: JobManager = Depends(_manager_dependency),
 ) -> JobResultResponse:
-	return _get_dimension_result("campaigns", job_id, manager)
+	return _get_dimension_result("campaigns", job_id, page, page_size, manager)
 
 
 @router.post("/jobs/placements", response_model=JobSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -99,9 +117,11 @@ def submit_placements_request(
 @router.get("/jobs/placements/{job_id}", response_model=JobResultResponse)
 def get_placements_result(
 	job_id: str,
+	page: int = Query(default=1, ge=1),
+	page_size: int | None = Query(default=None, ge=1),
 	manager: JobManager = Depends(_manager_dependency),
 ) -> JobResultResponse:
-	return _get_dimension_result("placements", job_id, manager)
+	return _get_dimension_result("placements", job_id, page, page_size, manager)
 
 
 @router.post("/jobs/creatives", response_model=JobSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -115,6 +135,8 @@ def submit_creatives_request(
 @router.get("/jobs/creatives/{job_id}", response_model=JobResultResponse)
 def get_creatives_result(
 	job_id: str,
+	page: int = Query(default=1, ge=1),
+	page_size: int | None = Query(default=None, ge=1),
 	manager: JobManager = Depends(_manager_dependency),
 ) -> JobResultResponse:
-	return _get_dimension_result("creatives", job_id, manager)
+	return _get_dimension_result("creatives", job_id, page, page_size, manager)

@@ -38,6 +38,15 @@ class DimensionItem(BaseModel):
 	name: str
 
 
+class PaginationMeta(BaseModel):
+	page: int
+	page_size: int
+	total_items: int
+	total_pages: int
+	has_next: bool
+	has_previous: bool
+
+
 class JobSubmissionResponse(BaseModel):
 	job_id: str
 	entity: EntityType
@@ -55,4 +64,5 @@ class JobResultResponse(BaseModel):
 	ended_at: datetime | None = None
 	total: int | None = None
 	items: list[DimensionItem] | None = None
+	pagination: PaginationMeta | None = None
 	error: str | None = None

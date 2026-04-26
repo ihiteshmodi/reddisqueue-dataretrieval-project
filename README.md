@@ -17,6 +17,11 @@ This project now exposes 8 endpoints:
 - 4 submit endpoints (`POST`) to enqueue a Redis job.
 - 4 retrieval endpoints (`GET`) to fetch status/result by `job_id`.
 
+Retrieval endpoints support pagination query params:
+
+- `page` (default `1`)
+- `page_size` (default from config, currently `250`)
+
 ### Endpoints
 
 - `POST /v1/jobs/advertisers`
@@ -95,5 +100,5 @@ Response (example):
 Fetch status/result:
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/jobs/advertisers/<job_id>
+curl -s "http://127.0.0.1:8000/v1/jobs/advertisers/<job_id>?page=1&page_size=50"
 ```

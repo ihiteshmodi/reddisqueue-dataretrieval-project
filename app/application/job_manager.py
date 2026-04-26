@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, cast
 
+from app.application.pagination import paginate_items
 from app.infrastructure.config import Settings
 from app.infrastructure.redis_queue import (
 	create_queue,
@@ -11,11 +12,13 @@ from app.infrastructure.redis_queue import (
 )
 from app.infrastructure.sqlite_db import normalize_entity
 from app.interfaces.schemas import (
+	DimensionItem,
 	DimensionQueryRequest,
 	EntityType,
 	JobStatus,
 	JobResultResponse,
 	JobSubmissionResponse,
+	PaginationMeta,
 )
 
 
@@ -79,7 +82,13 @@ class JobManager:
 			submitted_at=_normalize_datetime(job.enqueued_at),
 		)
 
-	def get_result(self, entity: str, job_id: str) -> JobResultResponse:
+	def get_result(
+		self,
+		entity: str,
+		job_id: str,
+		page: int,
+		page_size: int,
+	) -> JobResultResponse:
 		normalized_entity = normalize_entity(entity)
 		typed_entity = cast(EntityType, normalized_entity)
 		job = fetch_job(self._queue, job_id)
@@ -116,10 +125,19 @@ class JobManager:
 				response.error = "Job ID does not match requested entity"
 				return response
 
-			items = raw_result.get("items", [])
-			total = int(raw_result.get("total", len(items)))
+			all_items = raw_result.get("items", [])
+			total = int(raw_result.get("total", len(all_items)))
+			paged_items, page_meta = paginate_items(all_items, page=page, page_size=page_size)
 			response.total = total
-			response.items = items
+			response.items = [DimensionItem(**item) for item in paged_items]
+			response.pagination = PaginationMeta(
+				page=int(page_meta["page"]),
+				page_size=int(page_meta["page_size"]),
+				total_items=int(page_meta["total_items"]),
+				total_pages=int(page_meta["total_pages"]),
+				has_next=bool(page_meta["has_next"]),
+				has_previous=bool(page_meta["has_previous"]),
+			)
 
 		return response
 
