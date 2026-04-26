@@ -1,0 +1,1 @@
+# SQLite adapter and helpers
