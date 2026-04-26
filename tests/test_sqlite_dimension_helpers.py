@@ -64,3 +64,19 @@ def test_fetch_distinct_dimension_rows_with_search_filter(tmp_path: Path) -> Non
     )
     assert len(filtered_rows) == 2
     assert [row["name"] for row in filtered_rows] == ["Alpha Co", "Beta Co"]
+
+
+@pytest.mark.parametrize("placeholder", ["string", " STRING ", "null", "none", ""])
+def test_fetch_distinct_dimension_rows_ignores_placeholder_search_values(
+    tmp_path: Path,
+    placeholder: str,
+) -> None:
+    db_path = tmp_path / "unit.db"
+    _build_test_db(db_path)
+
+    rows = fetch_distinct_dimension_rows(
+        db_path=db_path,
+        entity="advertisers",
+        search=placeholder,
+    )
+    assert len(rows) == 3

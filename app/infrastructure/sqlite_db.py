@@ -10,6 +10,8 @@ ENTITY_TABLE_MAP: dict[str, tuple[str, str, str]] = {
 	"creatives": ("creatives", "creative_id", "creative_name"),
 }
 
+SWAGGER_PLACEHOLDER_VALUES = {"", "string", "null", "none"}
+
 
 def normalize_entity(entity: str) -> str:
 	normalized = entity.strip().lower()
@@ -28,7 +30,7 @@ def fetch_distinct_dimension_rows(
 	search_term = None
 	if search:
 		cleaned = search.strip()
-		if cleaned:
+		if cleaned and cleaned.lower() not in SWAGGER_PLACEHOLDER_VALUES:
 			search_term = f"%{cleaned}%"
 
 	if not db_path.exists():

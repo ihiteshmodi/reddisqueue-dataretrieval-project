@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 EntityType = Literal["advertisers", "campaigns", "placements", "creatives"]
 JobStatus = Literal[
@@ -20,7 +20,17 @@ JobStatus = Literal[
 
 
 class DimensionQueryRequest(BaseModel):
-	search: str | None = Field(default=None, max_length=100)
+	model_config = ConfigDict(
+		json_schema_extra={
+			"example": {},
+		}
+	)
+
+	search: str | None = Field(
+		default=None,
+		max_length=100,
+		description="Optional case-insensitive contains filter by name.",
+	)
 
 
 class DimensionItem(BaseModel):
