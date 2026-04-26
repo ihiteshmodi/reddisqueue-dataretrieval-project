@@ -1,0 +1,15 @@
+# NOTE: we are not enabling persistent storage here as this is a sample project git repository. I need to keep the size manageable.
+
+services:
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    # Uncomment the following lines to enable data persistence
+    # volumes:
+    #   - valkey_data:/data
+
+# Uncomment to enable persistent storage
+#volumes:
+#  valkey_data:
+#    driver: local
