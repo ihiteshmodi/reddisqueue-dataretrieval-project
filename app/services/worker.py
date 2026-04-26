@@ -8,12 +8,15 @@ from rq import Worker
 
 from app.infrastructure.config import get_settings
 from app.infrastructure.redis_queue import create_queue
+from app.observability.logging import configure_logging
 from app.infrastructure.sqlite_db import (
 	fetch_distinct_dimension_rows,
 	fetch_fact_metrics_rows,
 	normalize_entity,
 )
 
+settings = get_settings()
+configure_logging(settings.log_level, settings.log_json)
 logger = logging.getLogger("app.worker")
 
 
@@ -77,7 +80,6 @@ def run_fact_metrics_job(
 
 
 def main() -> None:
-	settings = get_settings()
 	queue = create_queue(settings)
 	worker = Worker([queue], connection=queue.connection)
 	worker.work(with_scheduler=False)

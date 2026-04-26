@@ -19,6 +19,27 @@ def _get_int(name: str, default: int) -> int:
 		raise ValueError(f"Invalid integer for {name}: {raw_value}") from exc
 
 
+def _get_bool(name: str, default: bool) -> bool:
+	raw_value = getenv(name)
+	if raw_value is None:
+		return default
+	normalized = raw_value.strip().lower()
+	if normalized in {"1", "true", "t", "yes", "y", "on"}:
+		return True
+	if normalized in {"0", "false", "f", "no", "n", "off"}:
+		return False
+	raise ValueError(f"Invalid boolean for {name}: {raw_value}")
+
+
+def _default_log_level_for_env(environment: str) -> str:
+	env = environment.lower()
+	if env in {"development", "dev", "local"}:
+		return "DEBUG"
+	if env in {"staging", "stage", "qa", "test"}:
+		return "INFO"
+	return "WARNING"
+
+
 def _resolve_db_path(raw_path: str) -> Path:
 	db_path = Path(raw_path)
 	if db_path.is_absolute():
@@ -30,6 +51,12 @@ def _resolve_db_path(raw_path: str) -> Path:
 class Settings:
 	app_name: str
 	app_version: str
+	app_env: str
+	debug: bool
+	log_level: str
+	log_json: bool
+	enable_opentelemetry: bool
+	slow_request_warning_ms: int
 	sqlite_db_path: Path
 	default_page_size: int
 	max_page_size: int
@@ -49,9 +76,21 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+	app_env = getenv("APP_ENV", "development")
+	debug = _get_bool("DEBUG", app_env.lower() in {"development", "dev", "local"})
+	log_level = getenv("LOG_LEVEL", _default_log_level_for_env(app_env)).upper()
+	log_json = _get_bool("LOG_JSON", True)
+	enable_opentelemetry = _get_bool("ENABLE_OPENTELEMETRY", (app_env.lower() == "production") or debug)
+
 	return Settings(
 		app_name=getenv("APP_NAME", "Redis Queue Data Request API"),
 		app_version=getenv("APP_VERSION", "0.1.0"),
+		app_env=app_env,
+		debug=debug,
+		log_level=log_level,
+		log_json=log_json,
+		enable_opentelemetry=enable_opentelemetry,
+		slow_request_warning_ms=_get_int("SLOW_REQUEST_WARNING_MS", 5000),
 		sqlite_db_path=_resolve_db_path(getenv("SQLITE_DB_PATH", "master_clientdata.db")),
 		default_page_size=_get_int("DEFAULT_PAGE_SIZE", 250),
 		max_page_size=_get_int("MAX_PAGE_SIZE", 1000),
