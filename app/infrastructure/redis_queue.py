@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from redis import Redis
@@ -25,10 +26,17 @@ def create_redis_connection(settings: Settings) -> Redis:
 		socket_timeout=settings.redis_socket_timeout_seconds,
 		health_check_interval=30,
 	)
-	try:
-		connection.ping()
-	except RedisError as exc:
-		raise QueueUnavailableError("Unable to connect to Redis") from exc
+	last_error: RedisError | None = None
+	for attempt in range(1, settings.redis_retry_attempts + 1):
+		try:
+			connection.ping()
+			return connection
+		except RedisError as exc:
+			last_error = exc
+			if attempt < settings.redis_retry_attempts:
+				time.sleep(settings.redis_retry_backoff_ms / 1000)
+	if last_error is not None:
+		raise QueueUnavailableError("Unable to connect to Redis") from last_error
 	return connection
 
 
@@ -46,6 +54,7 @@ def enqueue_dimension_job(
 	settings: Settings,
 	entity: str,
 	payload: dict[str, Any],
+	job_id: str | None = None,
 ) -> Job:
 	return queue.enqueue(
 		"app.services.worker.run_dimension_extract_job",
@@ -57,6 +66,7 @@ def enqueue_dimension_job(
 		result_ttl=settings.job_result_ttl_seconds,
 		failure_ttl=settings.job_failure_ttl_seconds,
 		job_timeout=settings.job_timeout_seconds,
+		job_id=job_id,
 	)
 
 
@@ -64,6 +74,7 @@ def enqueue_fact_metrics_job(
 	queue: Queue,
 	settings: Settings,
 	payload: dict[str, Any],
+	job_id: str | None = None,
 ) -> Job:
 	return queue.enqueue(
 		"app.services.worker.run_fact_metrics_job",
@@ -74,6 +85,7 @@ def enqueue_fact_metrics_job(
 		result_ttl=settings.job_result_ttl_seconds,
 		failure_ttl=settings.job_failure_ttl_seconds,
 		job_timeout=settings.job_timeout_seconds,
+		job_id=job_id,
 	)
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime
 from typing import Any, cast
 
@@ -67,22 +69,55 @@ def _normalize_result_entity(entity: str) -> EntityType:
 	return cast(EntityType, normalize_entity(cleaned))
 
 
+def _build_idempotency_job_id(
+	idempotency_key: str,
+	entity: str,
+	payload: dict[str, Any],
+) -> str:
+	payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+	digest = hashlib.sha256(f"{idempotency_key}|{entity}|{payload_json}".encode("utf-8")).hexdigest()
+	return f"idem-{digest}"
+
+
 class JobManager:
 	def __init__(self, settings: Settings) -> None:
 		self._settings = settings
 		self._queue = create_queue(settings)
 
-	def submit(self, entity: str, request: DimensionQueryRequest) -> JobSubmissionResponse:
+	def submit(
+		self,
+		entity: str,
+		request: DimensionQueryRequest,
+		idempotency_key: str | None = None,
+		request_id: str | None = None,
+	) -> JobSubmissionResponse:
 		normalized_entity = normalize_entity(entity)
 		typed_entity = cast(EntityType, normalized_entity)
-		payload: dict[str, Any] = {
+		payload_core: dict[str, Any] = {
 			"search": request.search,
 		}
+		payload: dict[str, Any] = {
+			**payload_core,
+			"_request_id": request_id,
+		}
+		job_id = None
+		if idempotency_key:
+			job_id = _build_idempotency_job_id(idempotency_key, normalized_entity, payload_core)
+			existing_job = fetch_job(self._queue, job_id)
+			if existing_job is not None:
+				return JobSubmissionResponse(
+					job_id=existing_job.id,
+					entity=typed_entity,
+					status="queued",
+					message="Existing job returned for idempotency key",
+					submitted_at=_normalize_datetime(existing_job.enqueued_at),
+				)
 		job = enqueue_dimension_job(
 			queue=self._queue,
 			settings=self._settings,
 			entity=normalized_entity,
 			payload=payload,
+			job_id=job_id,
 		)
 		return JobSubmissionResponse(
 			job_id=job.id,
@@ -92,8 +127,13 @@ class JobManager:
 			submitted_at=_normalize_datetime(job.enqueued_at),
 		)
 
-	def submit_fact_metrics(self, request: FactMetricsQueryRequest) -> JobSubmissionResponse:
-		payload: dict[str, Any] = {
+	def submit_fact_metrics(
+		self,
+		request: FactMetricsQueryRequest,
+		idempotency_key: str | None = None,
+		request_id: str | None = None,
+	) -> JobSubmissionResponse:
+		payload_core: dict[str, Any] = {
 			"advertiser_id": request.advertiser_id,
 			"campaign_id": request.campaign_id,
 			"placement_id": request.placement_id,
@@ -101,10 +141,27 @@ class JobManager:
 			"report_start_date": request.report_start_date.isoformat() if request.report_start_date else None,
 			"report_end_date": request.report_end_date.isoformat() if request.report_end_date else None,
 		}
+		payload: dict[str, Any] = {
+			**payload_core,
+			"_request_id": request_id,
+		}
+		job_id = None
+		if idempotency_key:
+			job_id = _build_idempotency_job_id(idempotency_key, "ad_metrics_daily", payload_core)
+			existing_job = fetch_job(self._queue, job_id)
+			if existing_job is not None:
+				return JobSubmissionResponse(
+					job_id=existing_job.id,
+					entity="ad_metrics_daily",
+					status="queued",
+					message="Existing job returned for idempotency key",
+					submitted_at=_normalize_datetime(existing_job.enqueued_at),
+				)
 		job = enqueue_fact_metrics_job(
 			queue=self._queue,
 			settings=self._settings,
 			payload=payload,
+			job_id=job_id,
 		)
 		return JobSubmissionResponse(
 			job_id=job.id,

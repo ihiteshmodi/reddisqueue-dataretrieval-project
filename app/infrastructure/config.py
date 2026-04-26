@@ -33,6 +33,8 @@ class Settings:
 	sqlite_db_path: Path
 	default_page_size: int
 	max_page_size: int
+	redis_retry_attempts: int
+	redis_retry_backoff_ms: int
 	redis_host: str
 	redis_port: int
 	redis_db: int
@@ -53,6 +55,8 @@ def get_settings() -> Settings:
 		sqlite_db_path=_resolve_db_path(getenv("SQLITE_DB_PATH", "master_clientdata.db")),
 		default_page_size=_get_int("DEFAULT_PAGE_SIZE", 250),
 		max_page_size=_get_int("MAX_PAGE_SIZE", 1000),
+		redis_retry_attempts=_get_int("REDIS_RETRY_ATTEMPTS", 3),
+		redis_retry_backoff_ms=_get_int("REDIS_RETRY_BACKOFF_MS", 200),
 		redis_host=getenv("REDIS_HOST", "127.0.0.1"),
 		redis_port=_get_int("REDIS_PORT", 6379),
 		redis_db=_get_int("REDIS_DB", 0),

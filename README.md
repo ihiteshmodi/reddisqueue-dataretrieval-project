@@ -17,6 +17,11 @@ This project now exposes 8 endpoints:
 - 4 submit endpoints (`POST`) to enqueue a Redis job.
 - 4 retrieval endpoints (`GET`) to fetch status/result by `job_id`.
 
+Request headers:
+
+- `Idempotency-Key` (optional): deduplicates repeated submit requests with same payload.
+- `X-Request-ID` (optional): correlation ID propagated to response and worker logs.
+
 Retrieval endpoints support pagination query params:
 
 - `page` (default `1`)
@@ -93,7 +98,8 @@ Response (example):
 	"entity": "advertisers",
 	"status": "queued",
 	"message": "Job submitted successfully",
-	"submitted_at": "2026-04-26T09:15:23+00:00"
+	"submitted_at": "2026-04-26T09:15:23+00:00",
+	"request_id": "9f8c6fa7-bb63-4eb9-b06d-c5e11236a5f0"
 }
 ```
 

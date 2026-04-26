@@ -77,6 +77,7 @@ class JobSubmissionResponse(BaseModel):
 	status: Literal["queued"]
 	message: str
 	submitted_at: datetime | None = None
+	request_id: str | None = None
 
 
 class JobResultResponse(BaseModel):
@@ -90,3 +91,15 @@ class JobResultResponse(BaseModel):
 	items: list[DimensionItem | FactMetricItem] | None = None
 	pagination: PaginationMeta | None = None
 	error: str | None = None
+	request_id: str | None = None
+
+
+class ApiErrorDetail(BaseModel):
+	code: str
+	message: str
+	request_id: str | None = None
+	details: dict[str, str | int | float | bool | None] | None = None
+
+
+class ApiErrorResponse(BaseModel):
+	error: ApiErrorDetail
