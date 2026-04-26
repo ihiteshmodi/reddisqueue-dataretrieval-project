@@ -75,7 +75,7 @@ def _submit_dimension_request(
 		return response
 	except ValueError as exc:
 		raise HTTPException(
-			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
 			detail=_error_detail(request_context, "INVALID_REQUEST", str(exc)),
 		) from exc
 	except FileNotFoundError as exc:
@@ -101,7 +101,7 @@ def _submit_fact_request(
 		return response
 	except ValueError as exc:
 		raise HTTPException(
-			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
 			detail=_error_detail(request_context, "INVALID_REQUEST", str(exc)),
 		) from exc
 	except FileNotFoundError as exc:
@@ -123,7 +123,7 @@ def _get_dimension_result(
 	effective_page_size = page_size or settings.default_page_size
 	if effective_page_size > settings.max_page_size:
 		raise HTTPException(
-			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
 			detail=_error_detail(
 				request_context,
 				"INVALID_PAGE_SIZE",
