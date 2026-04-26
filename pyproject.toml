@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "code-review-graph",
     "fastapi>=0.136.1",
+    "mypy>=1.20.2",
     "pytest>=9.0.3",
     "redis>=6.1.0",
     "rq>=2.8.0",
@@ -16,3 +18,6 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
 ]
+
+[tool.uv.sources]
+code-review-graph = { path = "../../code-review-graph-main", editable = true }
