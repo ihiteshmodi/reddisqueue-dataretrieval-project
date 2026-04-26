@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-EntityType = Literal["advertisers", "campaigns", "placements", "creatives"]
+EntityType = Literal["advertisers", "campaigns", "placements", "creatives", "ad_metrics_daily"]
 JobStatus = Literal[
 	"queued",
 	"started",
@@ -31,6 +32,29 @@ class DimensionQueryRequest(BaseModel):
 		max_length=100,
 		description="Optional case-insensitive contains filter by name.",
 	)
+
+
+class FactMetricsQueryRequest(BaseModel):
+	advertiser_id: str | None = Field(default=None, max_length=64)
+	campaign_id: str | None = Field(default=None, max_length=64)
+	placement_id: str | None = Field(default=None, max_length=64)
+	creative_id: str | None = Field(default=None, max_length=64)
+	report_start_date: date | None = Field(default=None)
+	report_end_date: date | None = Field(default=None)
+
+
+class FactMetricItem(BaseModel):
+	report_date: str
+	creative_id: str
+	placement_id: str
+	campaign_id: str
+	advertiser_id: str
+	spend: float
+	impressions: int
+	clicks: int
+	conversions: int
+	revenue: float
+	created_at: str
 
 
 class DimensionItem(BaseModel):
@@ -63,6 +87,6 @@ class JobResultResponse(BaseModel):
 	started_at: datetime | None = None
 	ended_at: datetime | None = None
 	total: int | None = None
-	items: list[DimensionItem] | None = None
+	items: list[DimensionItem | FactMetricItem] | None = None
 	pagination: PaginationMeta | None = None
 	error: str | None = None

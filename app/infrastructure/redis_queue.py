@@ -60,6 +60,23 @@ def enqueue_dimension_job(
 	)
 
 
+def enqueue_fact_metrics_job(
+	queue: Queue,
+	settings: Settings,
+	payload: dict[str, Any],
+) -> Job:
+	return queue.enqueue(
+		"app.services.worker.run_fact_metrics_job",
+		kwargs={
+			"request_payload": payload,
+			"db_path": str(settings.sqlite_db_path),
+		},
+		result_ttl=settings.job_result_ttl_seconds,
+		failure_ttl=settings.job_failure_ttl_seconds,
+		job_timeout=settings.job_timeout_seconds,
+	)
+
+
 def fetch_job(queue: Queue, job_id: str) -> Job | None:
 	try:
 		return Job.fetch(job_id, connection=queue.connection)

@@ -9,6 +9,7 @@ from app.infrastructure.config import get_settings
 from app.infrastructure.redis_queue import QueueUnavailableError
 from app.interfaces.schemas import (
 	DimensionQueryRequest,
+	FactMetricsQueryRequest,
 	JobResultResponse,
 	JobSubmissionResponse,
 )
@@ -39,6 +40,18 @@ def _submit_dimension_request(
 ) -> JobSubmissionResponse:
 	try:
 		return manager.submit(entity=entity, request=request)
+	except ValueError as exc:
+		raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+	except FileNotFoundError as exc:
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+def _submit_fact_request(
+	request: FactMetricsQueryRequest,
+	manager: JobManager,
+) -> JobSubmissionResponse:
+	try:
+		return manager.submit_fact_metrics(request=request)
 	except ValueError as exc:
 		raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 	except FileNotFoundError as exc:
@@ -140,3 +153,21 @@ def get_creatives_result(
 	manager: JobManager = Depends(_manager_dependency),
 ) -> JobResultResponse:
 	return _get_dimension_result("creatives", job_id, page, page_size, manager)
+
+
+@router.post("/jobs/ad-metrics", response_model=JobSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
+def submit_fact_metrics_request(
+	request: FactMetricsQueryRequest = Body(default_factory=FactMetricsQueryRequest),
+	manager: JobManager = Depends(_manager_dependency),
+) -> JobSubmissionResponse:
+	return _submit_fact_request(request, manager)
+
+
+@router.get("/jobs/ad-metrics/{job_id}", response_model=JobResultResponse)
+def get_fact_metrics_result(
+	job_id: str,
+	page: int = Query(default=1, ge=1),
+	page_size: int | None = Query(default=None, ge=1),
+	manager: JobManager = Depends(_manager_dependency),
+) -> JobResultResponse:
+	return _get_dimension_result("ad_metrics_daily", job_id, page, page_size, manager)

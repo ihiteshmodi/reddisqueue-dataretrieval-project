@@ -8,6 +8,7 @@ from app.infrastructure.config import Settings
 from app.infrastructure.redis_queue import (
 	create_queue,
 	enqueue_dimension_job,
+	enqueue_fact_metrics_job,
 	fetch_job,
 )
 from app.infrastructure.sqlite_db import normalize_entity
@@ -15,6 +16,8 @@ from app.interfaces.schemas import (
 	DimensionItem,
 	DimensionQueryRequest,
 	EntityType,
+	FactMetricItem,
+	FactMetricsQueryRequest,
 	JobStatus,
 	JobResultResponse,
 	JobSubmissionResponse,
@@ -57,6 +60,13 @@ ALLOWED_JOB_STATUSES = {
 }
 
 
+def _normalize_result_entity(entity: str) -> EntityType:
+	cleaned = entity.strip().lower()
+	if cleaned == "ad_metrics_daily":
+		return "ad_metrics_daily"
+	return cast(EntityType, normalize_entity(cleaned))
+
+
 class JobManager:
 	def __init__(self, settings: Settings) -> None:
 		self._settings = settings
@@ -82,6 +92,28 @@ class JobManager:
 			submitted_at=_normalize_datetime(job.enqueued_at),
 		)
 
+	def submit_fact_metrics(self, request: FactMetricsQueryRequest) -> JobSubmissionResponse:
+		payload: dict[str, Any] = {
+			"advertiser_id": request.advertiser_id,
+			"campaign_id": request.campaign_id,
+			"placement_id": request.placement_id,
+			"creative_id": request.creative_id,
+			"report_start_date": request.report_start_date.isoformat() if request.report_start_date else None,
+			"report_end_date": request.report_end_date.isoformat() if request.report_end_date else None,
+		}
+		job = enqueue_fact_metrics_job(
+			queue=self._queue,
+			settings=self._settings,
+			payload=payload,
+		)
+		return JobSubmissionResponse(
+			job_id=job.id,
+			entity="ad_metrics_daily",
+			status="queued",
+			message="Job submitted successfully",
+			submitted_at=_normalize_datetime(job.enqueued_at),
+		)
+
 	def get_result(
 		self,
 		entity: str,
@@ -89,8 +121,8 @@ class JobManager:
 		page: int,
 		page_size: int,
 	) -> JobResultResponse:
-		normalized_entity = normalize_entity(entity)
-		typed_entity = cast(EntityType, normalized_entity)
+		typed_entity = _normalize_result_entity(entity)
+		normalized_entity = typed_entity
 		job = fetch_job(self._queue, job_id)
 		if job is None:
 			return JobResultResponse(
@@ -129,7 +161,10 @@ class JobManager:
 			total = int(raw_result.get("total", len(all_items)))
 			paged_items, page_meta = paginate_items(all_items, page=page, page_size=page_size)
 			response.total = total
-			response.items = [DimensionItem(**item) for item in paged_items]
+			if normalized_entity == "ad_metrics_daily":
+				response.items = [FactMetricItem(**item) for item in paged_items]
+			else:
+				response.items = [DimensionItem(**item) for item in paged_items]
 			response.pagination = PaginationMeta(
 				page=int(page_meta["page"]),
 				page_size=int(page_meta["page_size"]),

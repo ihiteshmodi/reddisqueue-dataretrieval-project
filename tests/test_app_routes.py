@@ -7,6 +7,8 @@ EXPECTED_PATHS = {
     "/health",
     "/v1/jobs/advertisers",
     "/v1/jobs/advertisers/{job_id}",
+    "/v1/jobs/ad-metrics",
+    "/v1/jobs/ad-metrics/{job_id}",
     "/v1/jobs/campaigns",
     "/v1/jobs/campaigns/{job_id}",
     "/v1/jobs/placements",
@@ -17,5 +19,9 @@ EXPECTED_PATHS = {
 
 
 def test_expected_paths_are_registered() -> None:
-    app_paths = {route.path for route in app.routes}
+    app_paths = {
+        route.path
+        for route in app.routes
+        if hasattr(route, "path")
+    }
     assert EXPECTED_PATHS.issubset(app_paths)
