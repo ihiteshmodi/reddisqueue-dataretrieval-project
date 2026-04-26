@@ -58,7 +58,7 @@ async def request_id_middleware(request: Request, call_next):
 
 
 @app.exception_handler(RequestValidationError)
-async def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
 	request_id = getattr(request.state, "request_id", None)
 	errors = [{"loc": err.get("loc"), "msg": err.get("msg"), "type": err.get("type")} for err in exc.errors()]
 	logger.warning(
@@ -84,7 +84,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
 	request_id = getattr(request.state, "request_id", None)
 	detail = exc.detail
 	if isinstance(detail, dict) and "error" in detail:
@@ -114,7 +114,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
 	request_id = getattr(request.state, "request_id", None)
 	logger.exception(
 		"unhandled_exception",
